@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Markdown Table Exporter</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Markdown Table to Image</p>
+          <h1>TableShot Studio</h1>
+        </div>
+        <p class="subtitle">
+          Paste Markdown table code, style it, set exact dimensions, and export crisp PNG or SVG.
+        </p>
+      </header>
+
+      <section class="panel editor-panel">
+        <div class="panel-head">
+          <h2>Markdown Editor</h2>
+          <p>Table syntax only. Preview updates after a short debounce.</p>
+        </div>
+        <textarea id="markdownInput" spellcheck="false" aria-label="Markdown table input">
+| Plan | Seats | Price |
+| :--- | ---: | ---: |
+| Starter | 5 | $19 |
+| Team | 20 | $79 |
+| Business | 50 | $199 |
+        </textarea>
+        <p id="parseMessage" class="parse-message" role="status" aria-live="polite"></p>
+      </section>
+
+      <div class="workspace-grid">
+        <section class="panel preview-panel" id="previewPanel">
+          <div class="panel-head preview-head">
+            <div>
+              <h2>Live Preview</h2>
+              <p>Rendered output target for export.</p>
+            </div>
+            <div class="preview-head-actions">
+              <span id="previewUpdateBadge" class="preview-update-badge" aria-live="polite">Updated</span>
+            </div>
+          </div>
+          <div class="preview-scroll">
+            <div id="captureSurface" class="capture-surface" aria-label="Rendered table image preview">
+              <div id="tableMount"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel controls-panel" id="controlsPanel">
+          <div class="panel-head">
+            <h2>Canvas and Style</h2>
+            <div class="panel-head-right">
+              <p>Fast defaults first, advanced controls on demand.</p>
+              <button id="jumpPreviewBtn" type="button" class="jump-preview-btn">Jump to Preview</button>
+            </div>
+          </div>
+
+          <div class="settings-shell">
+            <details class="tier disclosure-tier essential-tier" open>
+              <summary>
+                <span>Essential</span>
+                <small>Dimensions, labels, quick export setup</small>
+              </summary>
+              <div class="tier-body">
+                <div class="cluster">
+                  <h4>Canvas</h4>
+                  <div class="field-row three-up">
+                    <label class="field compact-field">
+                      <span>Width</span>
+                      <input id="canvasWidth" type="number" min="100" max="4000" step="1" inputmode="numeric" value="1200" />
+                    </label>
+                    <label class="field compact-field">
+                      <span>Height</span>
+                      <input id="canvasHeight" type="number" min="100" max="4000" step="1" inputmode="numeric" value="630" />
+                    </label>
+                    <div class="checkbox-stack">
+                      <label class="checkbox-field">
+                        <input id="fitToCanvas" type="checkbox" />
+                        <span>Fit to canvas</span>
+                      </label>
+                      <label class="checkbox-field">
+                        <input id="lockAspectRatio" type="checkbox" checked />
+                        <span>Lock aspect ratio</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="cluster">
+                  <h4>Table Labels</h4>
+                  <div class="field-stack compact-stack">
+                    <label class="field compact-field">
+                      <span>Title (center top)</span>
+                      <input id="tableTitle" type="text" placeholder="Quarterly Pricing Overview" />
+                    </label>
+                    <label class="field compact-field">
+                      <span>Caption (left bottom)</span>
+                      <input id="tableCaption" type="text" placeholder="Source: Internal Pricing Data" />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <details class="tier disclosure-tier" id="advancedTier">
+              <summary>
+                <span>Advanced</span>
+                <small>Typography, spacing, colors, background</small>
+              </summary>
+              <div class="tier-body cluster-grid">
+                <section class="cluster">
+                  <h4>Typography</h4>
+                  <div class="field-stack compact-stack">
+                    <label class="field compact-field">
+                      <span>Font family</span>
+                      <input id="fontFamily" type="text" value="'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" />
+                    </label>
+                    <label class="field compact-field">
+                      <span>Font size <output id="fontSizeValue" for="fontSize">22</output>px</span>
+                      <input id="fontSize" type="range" min="8" max="96" value="22" />
+                    </label>
+                    <label class="field compact-field">
+                      <span>Line height <output id="lineHeightValue" for="lineHeight">1.35</output></span>
+                      <input id="lineHeight" type="range" step="0.05" min="1" max="2.2" value="1.35" />
+                    </label>
+                  </div>
+                </section>
+
+                <section class="cluster">
+                  <h4>Cell Spacing</h4>
+                  <div class="field-stack compact-stack">
+                    <label class="field compact-field">
+                      <span>Surface padding <output id="surfacePaddingValue" for="surfacePadding">36</output>px</span>
+                      <input id="surfacePadding" type="range" min="0" max="200" value="36" />
+                    </label>
+                    <label class="field compact-field">
+                      <span>Cell Y <output id="cellPaddingYValue" for="cellPaddingY">14</output>px</span>
+                      <input id="cellPaddingY" type="range" min="2" max="60" value="14" />
+                    </label>
+                    <label class="field compact-field">
+                      <span>Cell X <output id="cellPaddingXValue" for="cellPaddingX">18</output>px</span>
+                      <input id="cellPaddingX" type="range" min="2" max="80" value="18" />
+                    </label>
+                  </div>
+                </section>
+
+                <section class="cluster">
+                  <h4>Colors</h4>
+                  <div class="field-stack compact-stack">
+                    <label class="field color-field" data-color-field="textColor">
+                      <span>Text color</span>
+                      <input id="textColor" type="color" value="#1e293b" />
+                    </label>
+                    <label class="field color-field" data-color-field="headerTextColor">
+                      <span>Header text color</span>
+                      <input id="headerTextColor" type="color" value="#f8fafc" />
+                    </label>
+                    <label class="field color-field" data-color-field="headerBg">
+                      <span>Header background</span>
+                      <input id="headerBg" type="color" value="#0f172a" />
+                    </label>
+                    <label class="field color-field" data-color-field="rowBg">
+                      <span>Row background</span>
+                      <input id="rowBg" type="color" value="#ffffff" />
+                    </label>
+                    <label class="field color-field" data-color-field="rowAltBg">
+                      <span>Alternate row background</span>
+                      <input id="rowAltBg" type="color" value="#f8fafc" />
+                    </label>
+                    <label class="field color-field" data-color-field="borderColor">
+                      <span>Border color</span>
+                      <input id="borderColor" type="color" value="#cbd5e1" />
+                    </label>
+                  </div>
+                </section>
+
+                <section class="cluster background-cluster">
+                  <h4>Background</h4>
+                  <div class="field-stack compact-stack">
+                    <div class="field compact-field">
+                      <span>Background mode</span>
+                      <div class="segmented" role="radiogroup" aria-label="Background mode">
+                        <label class="seg-option">
+                          <input type="radio" name="backgroundMode" value="none" />
+                          <span>No BG</span>
+                        </label>
+                        <label class="seg-option">
+                          <input type="radio" name="backgroundMode" value="solid" checked />
+                          <span>Solid</span>
+                        </label>
+                        <label class="seg-option">
+                          <input type="radio" name="backgroundMode" value="gradient" />
+                          <span>Gradient</span>
+                        </label>
+                        <label class="seg-option">
+                          <input type="radio" name="backgroundMode" value="image" />
+                          <span>Image</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <label class="field color-field compact-field" id="surfaceBgWrap" data-color-field="surfaceBg">
+                      <span>Solid color</span>
+                      <input id="surfaceBg" type="color" value="#e2e8f0" />
+                    </label>
+
+                    <label class="field compact-field" id="surfaceImageWrap">
+                      <span>Background image URL</span>
+                      <input id="surfaceImage" type="url" placeholder="https://example.com/background.jpg" />
+                    </label>
+                  </div>
+                </section>
+              </div>
+            </details>
+
+            <details class="tier disclosure-tier" id="expertTier">
+              <summary>
+                <span>Expert / Custom CSS</span>
+                <small>Fine tuning and gradient syntax</small>
+              </summary>
+
+              <div class="tier-body cluster-grid">
+                <section class="cluster">
+                  <h4>Table Fine Tuning</h4>
+                  <div class="field-stack compact-stack">
+                    <label class="field compact-field">
+                      <span>Border width <output id="borderWidthValue" for="borderWidth">1</output>px</span>
+                      <input id="borderWidth" type="range" min="0" max="12" value="1" />
+                    </label>
+                    <label class="field compact-field">
+                      <span>Table radius <output id="tableRadiusValue" for="tableRadius">16</output>px</span>
+                      <input id="tableRadius" type="range" min="0" max="48" value="16" />
+                    </label>
+                  </div>
+                </section>
+
+                <section class="cluster">
+                  <h4>Background CSS</h4>
+                  <div class="field-stack compact-stack">
+                    <label class="field compact-field" id="surfaceGradientWrap">
+                      <span>Gradient CSS</span>
+                      <input
+                        id="surfaceGradient"
+                        type="text"
+                        value="linear-gradient(135deg, #dbeafe 0%, #f8fafc 45%, #c7d2fe 100%)"
+                      />
+                    </label>
+                  </div>
+                </section>
+
+                <section class="cluster">
+                  <h4>Font Loader</h4>
+                  <div class="field-stack compact-stack">
+                    <label class="field compact-field">
+                      <span>Custom font URL (.woff2/.woff/ttf)</span>
+                      <input id="fontUrl" type="url" placeholder="https://example.com/my-font.woff2" />
+                    </label>
+                    <button id="loadFontBtn" class="secondary-btn" type="button">Load font URL</button>
+                  </div>
+                </section>
+              </div>
+            </details>
+
+            <section class="tier export-tier">
+              <h3>Export</h3>
+              <div class="field-row two-up">
+                <label class="field compact-field">
+                  <span>Filename</span>
+                  <input id="fileName" type="text" value="table-export" />
+                </label>
+                <label class="field compact-field">
+                  <span>PNG scale</span>
+                  <select id="pngScale">
+                    <option value="2" selected>2x (default)</option>
+                    <option value="3">3x</option>
+                    <option value="1">1x</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="export-primary sticky-export-wrap">
+                <button id="exportPngBtn" type="button" class="primary-export">Export PNG</button>
+              </div>
+              <div class="export-secondary">
+                <button id="exportSvgBtn" type="button" class="secondary-btn">Export SVG</button>
+              </div>
+            </section>
+          </div>
+
+          <p id="exportMessage" class="export-message" role="status" aria-live="polite"></p>
+        </section>
+      </div>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
